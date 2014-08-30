@@ -27,9 +27,9 @@ function measure(cases) {
     Benchmark.prototype.setup();
 
 
-    time(cases[name], 5000);
+    time(cases[name], 10000);
 
-    print(name + ": " + time(cases[name], 50000));
+    print(name + ": " + time(cases[name], 100000));
   });
   return;
 

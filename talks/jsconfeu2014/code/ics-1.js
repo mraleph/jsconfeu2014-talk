@@ -32,55 +32,41 @@ function IC$Invoke$0(obj, arg) {
   return obj.add(arg);
 }
 
-function CompileAdd(name) {
+function CompileOp(op_name, op, id) {
   function Template(name) {
     return function Handler(x, y) {
       /* ${name} */
       if (typeof x !== "number" ||
           typeof y !== "number") {
-        return IC$Add$Miss(name, x, y);
+        return IC$Op$Miss(name, x, y);
       }
-      return x + y;
+      return op(x, y);
     };
   }
 
-  global[name] = Function("return " + Template.toString().replace("${name}", name))()(name);
+  var ic_name = "IC$" + op_name + "$" + id;
+
+  var src = Template
+    .toString()
+    .replace("${name}", ic_name)
+    .replace("$Op$", "$" + op_name + "$")
+    .replace("op(x, y)", "x " + op + " y");
+
+  global[ic_name] = Function("return " + src)()(ic_name);
 }
 
 var global = (function () { return this; })();
 
 for (var i = 0; i < 4; i++) {
-  CompileAdd("IC$Add$" + i);
+  CompileOp("Add", "+", i);
 }
 
-/*
-function IC$Add$0(x, y) {
-  return x + y;
+for (var i = 0; i < 2; i++) {
+  CompileOp("Mul", "*", i);
 }
 
-function IC$Add$1(x, y) {
-  return x + y;
-}
-
-function IC$Add$2(x, y) {
-  return x + y;
-}
-
-function IC$Add$3(x, y) {
-  return x + y;
-}*/
-
-
-function IC$Mul$0(x, y) {
-  return x * y;
-}
-
-function IC$Mul$1(x, y) {
-  return x * y;
-}
-
-function IC$Lt$0(x, y) {
-  return x < y;
+for (var i = 0; i < 1; i++) {
+  CompileOp("Lt", "<", i);
 }
 
 Point.prototype.add = function (other) {

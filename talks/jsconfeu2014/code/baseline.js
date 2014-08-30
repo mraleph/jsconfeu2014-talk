@@ -18,5 +18,6 @@ function sum(points, start, end) {
   for (var i = start; i < end; i++) {
     point.add(points[i])
   }
+  // i = null;
   return point.dot(point);
 }
