@@ -1,7 +1,7 @@
 
 function Point(x, y) {
-  this.x = 0;
-  this.y = 0;
+  this.x = x;
+  this.y = y;
 }
 
 function IC$Load$1(obj) {
@@ -32,6 +32,28 @@ function IC$Invoke$0(obj, arg) {
   return obj.add(arg);
 }
 
+function CompileAdd(name) {
+  function Template(name) {
+    return function Handler(x, y) {
+      /* ${name} */
+      if (typeof x !== "number" ||
+          typeof y !== "number") {
+        return IC$Add$Miss(name, x, y);
+      }
+      return x + y;
+    };
+  }
+
+  global[name] = Function("return " + Template.toString().replace("${name}", name))()(name);
+}
+
+var global = (function () { return this; })();
+
+for (var i = 0; i < 4; i++) {
+  CompileAdd("IC$Add$" + i);
+}
+
+/*
 function IC$Add$0(x, y) {
   return x + y;
 }
@@ -46,7 +68,8 @@ function IC$Add$2(x, y) {
 
 function IC$Add$3(x, y) {
   return x + y;
-}
+}*/
+
 
 function IC$Mul$0(x, y) {
   return x * y;

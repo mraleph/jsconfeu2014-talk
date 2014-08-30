@@ -1,7 +1,7 @@
 
 function Point(x, y) {
-  this.x = 0;
-  this.y = 0;
+  this.x = x;
+  this.y = y;
 }
 
 Point.prototype.add = function (other) {
@@ -13,9 +13,9 @@ Point.prototype.dot = function (other) {
   return this.x * other.x + this.y * other.y;
 }
 
-function sum(points) {
+function sum(points, start, end) {
   var point = new Point(0, 0);
-  for (var i = 0; i < points.length; i++) {
+  for (var i = start; i < end; i++) {
     point.add(points[i])
   }
   return point.dot(point);
