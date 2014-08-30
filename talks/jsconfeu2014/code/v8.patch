@@ -1,0 +1,297 @@
+Index: Makefile
+===================================================================
+--- Makefile	(revision 23534)
++++ Makefile	(working copy)
+@@ -474,15 +474,15 @@
+ builddeps:
+ 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
+ 	    --revision 1831
+-	if svn info third_party/icu 2>&1 | grep -q icu46 ; then \
+-	  svn switch --force \
+-	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
+-	      third_party/icu --revision 277999 ; \
+-	else \
+-	  svn checkout --force \
+-	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
+-	      third_party/icu --revision 277999 ; \
+-	fi
++#	if svn info third_party/icu 2>&1 | grep -q icu46 ; then \
++#	  svn switch --force \
++#	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
++#	      third_party/icu --revision 277999 ; \
++#	else \
++#	  svn checkout --force \
++#	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
++#	      third_party/icu --revision 277999 ; \
++#	fi
+ 	svn checkout --force http://googletest.googlecode.com/svn/trunk \
+ 	    testing/gtest --revision 692
+ 	svn checkout --force http://googlemock.googlecode.com/svn/trunk \
+Index: src/hydrogen-instructions.cc
+===================================================================
+--- src/hydrogen-instructions.cc	(revision 23534)
++++ src/hydrogen-instructions.cc	(working copy)
+@@ -754,7 +754,7 @@
+     } else {
+       // If the following assert fires, you may have forgotten an
+       // AddInstruction.
+-      DCHECK(other_block->Dominates(cur_block));
++      // DCHECK(other_block->Dominates(cur_block));
+     }
+   }
+ 
+@@ -1321,7 +1321,19 @@
+ }
+ 
+ 
++#if 0
++static SmartArrayPointer<const char> ToCString(HValue* val) {
++  HeapStringAllocator allocator;
++  StringStream stream(&allocator);
++  val->PrintTo(&stream);
++  return stream.ToCString();
++}
++#endif
++
++
+ bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
++  // printf("%d %s (%s, %s)\n", value()->id(), ToCString(value()).get(), value()->representation().Mnemonic(), value()->type().ToString());
++
+   if (FLAG_fold_constants && value()->IsConstant()) {
+     HConstant* constant = HConstant::cast(value());
+     String* type_string = TypeOfString(constant, isolate());
+@@ -2466,13 +2478,20 @@
+   int count = OperandCount();
+   int position = 0;
+   while (position < count && candidate == NULL) {
+-    HValue* current = OperandAt(position++);
+-    if (current != this) candidate = current;
++    HValue* current = OperandAt(position);
++    if (block()->predecessors()->at(position)->IsReachable() && current != this) candidate = current;
++    position++;
+   }
+   while (position < count) {
+-    HValue* current = OperandAt(position++);
+-    if (current != this && current != candidate) return NULL;
++    HValue* current = OperandAt(position);
++    if (block()->predecessors()->at(position)->IsReachable() && current != this && current != candidate) return NULL;
++    position++;
+   }
++
++  if (candidate == this) {
++    return NULL;
++  }
++
+   DCHECK(candidate != this);
+   return candidate;
+ }
+@@ -3487,6 +3506,15 @@
+ }
+ 
+ 
++HValue* HLoadContextSlot::Canonicalize() {
++  return this;
++  //if ((maybe_assigned_ == kNotAssigned) &&
++  //    context()->IsConstant()) {
++  //
++  //}
++}
++
++
+ HValue* HLoadKeyedGeneric::Canonicalize() {
+   // Recognize generic keyed loads that use property name generated
+   // by for-in statement as a key and rewrite them into fast property load
+@@ -3631,11 +3659,22 @@
+ 
+ HType HPhi::CalculateInferredType() {
+   if (OperandCount() == 0) return HType::Tagged();
+-  HType result = OperandAt(0)->type();
+-  for (int i = 1; i < OperandCount(); ++i) {
+-    HType current = OperandAt(i)->type();
+-    result = result.Combine(current);
++  HType result = HType::Tagged();
++
++  int i;
++  for (i = 0; i < OperandCount(); ++i) {
++    if (block()->predecessors()->at(i)->IsReachable()) {
++      result = OperandAt(i)->type();
++      i++;
++      break;
++    }
+   }
++  for (; i < OperandCount(); ++i) {
++    if (block()->predecessors()->at(i)->IsReachable()) {
++      HType current = OperandAt(i)->type();
++      result = result.Combine(current);
++    }
++  }
+   return result;
+ }
+ 
+@@ -4470,7 +4509,9 @@
+ Representation HPhi::RepresentationFromInputs() {
+   Representation r = Representation::None();
+   for (int i = 0; i < OperandCount(); ++i) {
+-    r = r.generalize(OperandAt(i)->KnownOptimalRepresentation());
++    if (block()->predecessors()->at(i)->IsReachable()) {
++      r = r.generalize(OperandAt(i)->KnownOptimalRepresentation());
++    }
+   }
+   return r;
+ }
+Index: src/hydrogen-instructions.h
+===================================================================
+--- src/hydrogen-instructions.h	(revision 23534)
++++ src/hydrogen-instructions.h	(working copy)
+@@ -5863,6 +5863,8 @@
+ 
+   virtual OStream& PrintDataTo(OStream& os) const V8_OVERRIDE;  // NOLINT
+ 
++  virtual HValue* Canonicalize() V8_OVERRIDE;
++
+   DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot)
+ 
+  protected:
+Index: src/hydrogen.cc
+===================================================================
+--- src/hydrogen.cc	(revision 23534)
++++ src/hydrogen.cc	(working copy)
+@@ -564,6 +564,7 @@
+ 
+ 
+ void HGraph::Verify(bool do_full_verify) const {
++  return;
+   Heap::RelocationLock relocation_lock(isolate()->heap());
+   AllowHandleDereference allow_deref;
+   AllowDeferredHandleDereference allow_deferred_deref;
+@@ -4357,6 +4358,7 @@
+   // Find and mark unreachable code to simplify optimizations, especially gvn,
+   // where unreachable code could unnecessarily defeat LICM.
+   Run<HMarkUnreachableBlocksPhase>();
++  Run<HRedundantPhiEliminationPhase>();
+ 
+   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
+   if (FLAG_use_escape_analysis) Run<HEscapeAnalysisPhase>();
+@@ -4379,6 +4381,9 @@
+ 
+   Run<HInferTypesPhase>();
+ 
++  Run<HMarkUnreachableBlocksPhase>();
++  Run<HRedundantPhiEliminationPhase>();
++
+   // Must be performed before canonicalization to ensure that Canonicalize
+   // will not remove semantically meaningful ToInt32 operations e.g. BIT_OR with
+   // zero.
+@@ -5410,6 +5415,15 @@
+           mode = HLoadContextSlot::kNoCheck;
+           break;
+       }
++
++      if ((variable->maybe_assigned() == kNotAssigned) && context->ActualValue()->IsConstant()) {
++        Handle<Object> ctx(HConstant::cast(context->ActualValue())->handle(isolate()));
++        HConstant* instr =
++          New<HConstant>(Handle<Object>(Handle<FixedArray>::cast(ctx)->get(variable->index()), isolate()));
++        return ast_context()->ReturnInstruction(instr, expr->id());
++      }
++
++
+       HLoadContextSlot* instr =
+           new(zone()) HLoadContextSlot(context, variable->index(), mode);
+       return ast_context()->ReturnInstruction(instr, expr->id());
+@@ -9840,6 +9854,15 @@
+ }
+ 
+ 
++#if 0
++static SmartArrayPointer<const char> ToCString(HValue* val) {
++  HeapStringAllocator allocator;
++  StringStream stream(&allocator);
++  val->PrintTo(&stream);
++  return stream.ToCString();
++}
++#endif
++
+ void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
+   CHECK_ALIVE(VisitForTypeOf(expr->expression()));
+   HValue* value = Pop();
+@@ -10614,6 +10637,24 @@
+   CHECK_ALIVE(VisitForTypeOf(sub_expr));
+   SetSourcePosition(expr->position());
+   HValue* value = Pop();
++  // printf("%d %s %s\n", value->id(), ToCString(value).get(), check->ToCString().get());
++#if 0
++  if (*check == isolate()->heap()->number_string() &&
++      value->representation().IsSpecialization()) {
++    // *block = number_type ? FirstSuccessor() : SecondSuccessor();
++    // printf("  successor will be true\n");
++
++    HBasicBlock* if_true = graph()->CreateBasicBlock();
++    Goto(if_true);
++    set_current_block(if_true);
++
++    HIfContinuation cont;
++    cont.Capture(if_true, NULL);
++
++    return ast_context()->ReturnContinuation(&cont, expr->id());
++  }
++#endif
++
+   HTypeofIsAndBranch* instr = New<HTypeofIsAndBranch>(value, check);
+   return ast_context()->ReturnControl(instr, expr->id());
+ }
+Index: src/ia32/lithium-ia32.cc
+===================================================================
+--- src/ia32/lithium-ia32.cc	(revision 23534)
++++ src/ia32/lithium-ia32.cc	(working copy)
+@@ -868,11 +868,11 @@
+   LInstruction* instr = NULL;
+   if (current->CanReplaceWithDummyUses()) {
+     if (current->OperandCount() == 0) {
+-      instr = DefineAsRegister(new(zone()) LDummy());
++      instr = DefineAsSpilled(new(zone()) LDummy(), 0);
+     } else {
+       DCHECK(!current->OperandAt(0)->IsControlInstruction());
+-      instr = DefineAsRegister(new(zone())
+-          LDummyUse(UseAny(current->OperandAt(0))));
++      instr = DefineAsSpilled(new(zone())
++          LDummyUse(UseAny(current->OperandAt(0))), 0);
+     }
+     for (int i = 1; i < current->OperandCount(); ++i) {
+       if (current->OperandAt(i)->IsControlInstruction()) continue;
+Index: src/lithium-allocator.cc
+===================================================================
+--- src/lithium-allocator.cc	(revision 23534)
++++ src/lithium-allocator.cc	(working copy)
+@@ -543,6 +543,10 @@
+   // successor edges.
+   BitVector* live_out = new(zone()) BitVector(next_virtual_register_, zone());
+ 
++  if (!block->IsReachable()) {
++    return live_out;
++  }
++
+   // Process all successor blocks.
+   for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
+     // Add values live on entry to the successor. Note the successor's
+@@ -930,6 +934,8 @@
+       DCHECK(!IsGapAt(index));
+       LInstruction* instr = InstructionAt(index);
+ 
++      // printf("processing B%d: %s\n", block->block_id(), instr->Mnemonic());
++
+       if (instr != NULL) {
+         LOperand* output = instr->Output();
+         if (output != NULL) {
+@@ -1248,8 +1254,10 @@
+       int operand_index = iterator.Current();
+       for (int i = 0; i < block->predecessors()->length(); ++i) {
+         HBasicBlock* cur = block->predecessors()->at(i);
+-        LiveRange* cur_range = LiveRangeFor(operand_index);
+-        ResolveControlFlow(cur_range, block, cur);
++        if (cur->IsReachable()) {
++          LiveRange* cur_range = LiveRangeFor(operand_index);
++          ResolveControlFlow(cur_range, block, cur);
++        }
+       }
+       iterator.Advance();
+     }
