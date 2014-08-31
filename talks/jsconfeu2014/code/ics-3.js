@@ -17,12 +17,21 @@ Point.prototype.dot = function (other) {
 }
 
 function Point3(x, y, z) {
-  this.x = x;
-  this.y = y;
-  this.z = z;
+  this._x = x;
+  this._y = y;
 }
 
-Point3.td = new Set(["x", "y", "z"]);
+Point3.prototype.doNotUnderstand = function (message) {
+  if (message === 'get:x') {
+    return this._x;
+  } else if (message === 'get:y') {
+    return this._y;
+  } else {
+    throw new Error("DO NOT UNDERSTAND " + message);
+  }
+};
+
+Point3.td = new Set(["doNotUnderstand"]);
 
 function install(handler) {
   global[handler.info.icName] = handler;
@@ -33,21 +42,30 @@ function IC$Load$Miss(receiver) {
 
   var ctor = receiver.constructor;
   if (typeof ctor === "function" &&
-      ctor.td instanceof Set &&
-      ctor.td.has(propertyName)) {
-    var new_handler = CompileOpX(
+      ctor.td instanceof Set) {
+    var new_handler = null;
+    if (ctor.td.has(propertyName)) {
+      new_handler = CompileOpX(
+          "receiver",
+          "receiver.constructor",
+          ctor,
+          "receiver." + propertyName);
+    } else if (ctor.td.has("doNotUnderstand")) {
+      new_handler = CompileOpX(
         "receiver",
         "receiver.constructor",
         ctor,
-        "receiver." + propertyName,
-        IC$Load$Miss);
-    new_handler.info = this;
-    install(new_handler);
-    return new_handler(receiver);
-  } else {
-    throw new Error("Trying to load property " + propertyName + " from an unsupported object!");
+        "receiver.doNotUnderstand('get:" + propertyName + "')");
+    }
+
+    if (new_handler !== null) {
+      new_handler.info = this;
+      install(new_handler);
+      return new_handler(receiver);
+    }
   }
 
+  throw new Error("Trying to load property " + propertyName + " from an unsupported object!");
   try { } catch (e) { }
 }
 
