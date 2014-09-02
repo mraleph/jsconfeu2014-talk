@@ -22,16 +22,16 @@ function Point3(x, y, z) {
 }
 
 Point3.prototype.doNotUnderstand = function (message) {
-  if (message === 'get:x') {
+  if (message.name === 'get:x') {
     return this._x;
-  } else if (message === 'get:y') {
+  } else if (message.name === 'get:y') {
     return this._y;
   } else {
-    throw new Error("DO NOT UNDERSTAND " + message);
+    throw new Error("DO NOT UNDERSTAND " + message.name);
   }
 };
 
-Point3.td = new Set(["doNotUnderstand"]);
+Point3.td = new Set([ "doNotUnderstand"]);
 
 function install(handler) {
   global[handler.info.icName] = handler;
@@ -55,7 +55,7 @@ function IC$Load$Miss(receiver) {
         "receiver",
         "receiver.constructor",
         ctor,
-        "receiver.doNotUnderstand('get:" + propertyName + "')");
+        "receiver.doNotUnderstand({name: 'get:" + propertyName + "'})");
     }
 
     if (new_handler !== null) {
