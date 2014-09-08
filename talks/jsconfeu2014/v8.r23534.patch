@@ -38,7 +38,7 @@ Index: src/ast.cc
 -    if (!it->isolate()->heap()->InNewSpace(*candidate)) {
 +    if (!it->isolate()->heap()->InNewSpace(*candidate) ||
 +        (it->name()->IsString() &&
-+         Handle<String>::cast(it->name())->Get(0) == 'I')) {
++         Handle<String>::cast(it->name())->Get(0) == L'\u03A3')) {
        target_ = candidate;
        return true;
      }
@@ -55,6 +55,37 @@ Index: src/hydrogen-escape-analysis.cc
        if (FLAG_trace_escape_analysis) {
          PrintF("#%d (%s) escapes through #%d (%s) @%d\n", value->id(),
                 value->Mnemonic(), use->id(), use->Mnemonic(), it.index());
+Index: src/hydrogen-gvn.cc
+===================================================================
+--- src/hydrogen-gvn.cc	(revision 23534)
++++ src/hydrogen-gvn.cc	(working copy)
+@@ -620,6 +620,26 @@
+           // Move the instruction out of the loop.
+           instr->Unlink();
+           instr->InsertBefore(pre_header->end());
++          if (instr->IsChange() && HChange::cast(instr)->to().IsSmi()) {
++            HValue* value = HChange::cast(instr)->value();
++            for (HUseIterator it(value->uses());
++                 !it.Done();
++                 it.Advance()) {
++              HValue* use = it.value();
++              if (instr == use || !use->IsInstruction()) {
++                continue;
++              }
++
++              if (!instr->Dominates(HInstruction::cast(use))) {
++                continue;
++              }
++
++              Representation rep = use->RequiredInputRepresentation(it.index());
++              if (rep.IsNone() || rep.IsTagged()) {
++                use->SetOperandAt(it.index(), instr);
++              }
++            }
++          }
+           if (instr->HasSideEffects()) removed_side_effects_ = true;
+         }
+       }
 Index: src/hydrogen-instructions.cc
 ===================================================================
 --- src/hydrogen-instructions.cc	(revision 23534)
@@ -88,7 +119,26 @@ Index: src/hydrogen-instructions.cc
    if (FLAG_fold_constants && value()->IsConstant()) {
      HConstant* constant = HConstant::cast(value());
      String* type_string = TypeOfString(constant, isolate());
-@@ -2465,7 +2477,19 @@
+@@ -1333,6 +1345,18 @@
+         type_literal_.IsKnownGlobal(isolate()->heap()->number_string());
+     *block = number_type ? FirstSuccessor() : SecondSuccessor();
+     return true;
++  } else if (type_literal_.IsKnownGlobal(isolate()->heap()->number_string())) {
++    // bool is_smi = true;
++    for (HUseIterator it(value()->uses()); !it.Done(); it.Advance()) {
++      HValue* use = it.value();
++      if (use->IsChange() &&
++          HChange::cast(use)->to().IsSmi() &&
++          use->block()->Dominates(this->block())) {
++        printf("v%d is smi because of v%d\n", value()->id(), use->id());
++        *block = FirstSuccessor();
++        return true;
++      }
++    }
+   }
+   *block = NULL;
+   return false;
+@@ -2465,7 +2489,19 @@
    HValue* candidate = NULL;
    int count = OperandCount();
    int position = 0;
@@ -108,7 +158,7 @@ Index: src/hydrogen-instructions.cc
      HValue* current = OperandAt(position++);
      if (current != this) candidate = current;
    }
-@@ -2473,6 +2497,12 @@
+@@ -2473,6 +2509,12 @@
      HValue* current = OperandAt(position++);
      if (current != this && current != candidate) return NULL;
    }
@@ -121,7 +171,7 @@ Index: src/hydrogen-instructions.cc
    DCHECK(candidate != this);
    return candidate;
  }
-@@ -3487,6 +3517,15 @@
+@@ -3487,6 +3529,15 @@
  }
  
  
@@ -137,7 +187,7 @@ Index: src/hydrogen-instructions.cc
  HValue* HLoadKeyedGeneric::Canonicalize() {
    // Recognize generic keyed loads that use property name generated
    // by for-in statement as a key and rewrite them into fast property load
-@@ -3631,11 +3670,22 @@
+@@ -3631,11 +3682,22 @@
  
  HType HPhi::CalculateInferredType() {
    if (OperandCount() == 0) return HType::Tagged();
@@ -164,7 +214,7 @@ Index: src/hydrogen-instructions.cc
    return result;
  }
  
-@@ -4470,7 +4520,9 @@
+@@ -4470,7 +4532,9 @@
  Representation HPhi::RepresentationFromInputs() {
    Representation r = Representation::None();
    for (int i = 0; i < OperandCount(); ++i) {
@@ -230,27 +280,35 @@ Index: src/hydrogen.cc
    // Must be performed before canonicalization to ensure that Canonicalize
    // will not remove semantically meaningful ToInt32 operations e.g. BIT_OR with
    // zero.
-@@ -5410,6 +5415,19 @@
+@@ -5351,6 +5356,11 @@
+ 
+       if (type == kUseCell) {
+         Handle<PropertyCell> cell = it.GetPropertyCell();
++#if 0
++        OStringStream ss;
++        cell->type()->PrintTo(ss);
++        printf("[%p] %s :> %s\n\n", *cell, variable->name()->ToCString().get(), ss.c_str());
++#endif
+         if (cell->type()->IsConstant()) {
+           PropertyCell::AddDependentCompilationInfo(cell, top_info());
+           Handle<Object> constant_object = cell->type()->AsConstant()->Value();
+@@ -5410,6 +5420,15 @@
            mode = HLoadContextSlot::kNoCheck;
            break;
        }
 +
-+      if ((variable->maybe_assigned() == kNotAssigned) && context->ActualValue()->IsConstant()) {
++      if ((variable->maybe_assigned() == kNotAssigned) &&
++          context->ActualValue()->IsConstant()) {
 +        Handle<Object> ctx(HConstant::cast(context->ActualValue())->handle(isolate()));
 +        HConstant* instr =
 +          New<HConstant>(Handle<Object>(Handle<FixedArray>::cast(ctx)->get(variable->index()), isolate()));
-+        // printf("%s [%d]\n", variable->name()->ToCString().get(), variable->index());
-+        // Handle<FixedArray>::cast(ctx)->get(variable->index())->Print();
-+        // ctx->Print();
-+        // printf("\n");
 +        return ast_context()->ReturnInstruction(instr, expr->id());
 +      }
-+
 +
        HLoadContextSlot* instr =
            new(zone()) HLoadContextSlot(context, variable->index(), mode);
        return ast_context()->ReturnInstruction(instr, expr->id());
-@@ -9058,6 +9076,10 @@
+@@ -9058,6 +9077,10 @@
          Handle<GlobalObject> global(current_info()->global_object());
          known_global_function = expr->ComputeGlobalTarget(global, &it);
        }
@@ -261,7 +319,7 @@ Index: src/hydrogen.cc
        if (known_global_function) {
          Add<HCheckValue>(function, expr->target());
  
-@@ -9840,6 +9862,15 @@
+@@ -9840,6 +9863,15 @@
  }
  
  
@@ -277,7 +335,7 @@ Index: src/hydrogen.cc
  void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
    CHECK_ALIVE(VisitForTypeOf(expr->expression()));
    HValue* value = Pop();
-@@ -10614,6 +10645,24 @@
+@@ -10614,6 +10646,24 @@
    CHECK_ALIVE(VisitForTypeOf(sub_expr));
    SetSourcePosition(expr->position());
    HValue* value = Pop();
@@ -306,12 +364,12 @@ Index: src/ia32/lithium-ia32.cc
 ===================================================================
 --- src/ia32/lithium-ia32.cc	(revision 23534)
 +++ src/ia32/lithium-ia32.cc	(working copy)
-@@ -867,13 +867,23 @@
+@@ -867,6 +867,15 @@
  
    LInstruction* instr = NULL;
    if (current->CanReplaceWithDummyUses()) {
 +#if 1
-     if (current->OperandCount() == 0) {
++     if (current->OperandCount() == 0) {
 +      instr = DefineAsSpilled(new(zone()) LDummy(), 0);
 +    } else {
 +      DCHECK(!current->OperandAt(0)->IsControlInstruction());
@@ -319,10 +377,10 @@ Index: src/ia32/lithium-ia32.cc
 +          LDummyUse(UseAny(current->OperandAt(0))), 0);
 +    }
 +#else
-+    if (current->OperandCount() == 0) {
+     if (current->OperandCount() == 0) {
        instr = DefineAsRegister(new(zone()) LDummy());
      } else {
-       DCHECK(!current->OperandAt(0)->IsControlInstruction());
+@@ -874,6 +883,7 @@
        instr = DefineAsRegister(new(zone())
            LDummyUse(UseAny(current->OperandAt(0))));
      }
@@ -381,3 +439,24 @@ Index: src/lithium-allocator.cc
      reusable_slots_.Add(range, zone());
    }
  }
+Index: src/objects.cc
+===================================================================
+--- src/objects.cc	(revision 23534)
++++ src/objects.cc	(working copy)
+@@ -16384,6 +16384,16 @@
+   Handle<HeapType> old_type(cell->type(), isolate);
+   Handle<HeapType> new_type = HeapType::Constant(value, isolate);
+ 
++#if 0
++  cell->Print();
++  value->Print();
++  OStringStream ss;
++  old_type->PrintTo(ss);
++  ss << " ~> ";
++  new_type->PrintTo(ss);
++  printf("%s\n\n", ss.c_str());
++#endif
++
+   if (new_type->Is(old_type)) return old_type;
+ 
+   cell->dependent_code()->DeoptimizeDependentCodeGroup(
