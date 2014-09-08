@@ -73,6 +73,11 @@
 		  	font-weight: bold !important;
 		  	text-decoration: underline;
 		  }
+
+		  .pinkish {
+		  	color: #c1357a !important;
+		  	font-weight: bold !important;
+		  }
 		</style>
 	</head>
 
@@ -83,6 +88,12 @@
 			<!-- Any section element inside of this container is displayed as a slide -->
 			<div class="slides">
 				<section data-background="images/slide-1-1.png" data-background-size="contain">
+				</section>
+
+				<section>
+					<h1>I'm Slava</h1>
+					<h3>I like compiling things</h3>
+					<h4>and ranting about that on @mraleph</h4>
 				</section>
 
         <section>
@@ -724,6 +735,62 @@ lensum x <span class="yellow">22,518</span> ops/sec
 </pre>
         </section>
 
+				<section>
+					<h1>where is 20%?</h1>
+				</section>
+
+				<section>
+					<h1>compiler&nbsp;issues</h1>
+					<h3>e.g. unreachable blocks are not removed from the graph "poisoning" register allocation</h3>
+				</section>
+
+				<section data-background="images/slide-3-1.png" data-background-size="contain">
+				</section>
+
+        <section>
+          <pre style="font-size: 0.9em;">
+$ <span class="dr">d8-x</span> s5.js
+lensum x <span class="green">25,566</span> ops/sec
+<em># only <span class="green">~6%</span> slower</em>
+</pre>
+        </section>
+
+        <section>
+          <pre style="font-size: 0.9em;">
+$ <span class="dr">d8-x</span> s5.js
+lensum x <span class="green">25,566</span> ops/sec
+<em># only <span class="green">~6%</span> slower</em>
+<em># actually depends on CPU at this stage</em>
+<em># generated code is almost the same</em>
+</pre>
+        </section>
+
+        <section>
+        	<h1>JS is one big invokedynamic</h1>
+        </section>
+
+        <section>
+        	<h1>totally enough <b class="dr">expressivity</b></h1>
+        </section>
+
+        <section>
+        	<h1>almost enough <b class="dr">optimizations</b></h1>
+        </section>
+
+        <section>
+        	<h1>too much <b class="dr">heuristics</b></h1>
+        </section>
+
+        <section>
+        	<h1>we need <b class="pinkish">conventions</b></h1>
+        </section>
+
+				<section data-background="images/slide-4-1.png" data-background-size="contain">
+				</section>
+
+        <section>
+        	<h1>THANK <span class="pinkish">YOU</span>!</h1>
+        </section>
 			</div>
 
 		</div>
