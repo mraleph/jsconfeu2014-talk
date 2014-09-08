@@ -78,7 +78,7 @@ body {
 	        hyphens: auto;
 
 	word-wrap: break-word;
-	line-height: 1;
+	line-height: 1.5em;
 }
 
 .reveal h1 { font-size: 3.77em; }
@@ -318,7 +318,7 @@ body {
 .reveal pre {
 	display: block;
 	position: relative;
-	width: 90%;
+	width: 95%;
 	margin: 15px auto;
 
 	text-align: left;
@@ -328,7 +328,7 @@ body {
 
 	word-wrap: break-word;
 
-	box-shadow: 0px 0px 6px rgba(0,0,0,0.3);
+	/* box-shadow: 0px 0px 6px rgba(0,0,0,0.3); */
 }
 .reveal code {
 	font-family: monospace;

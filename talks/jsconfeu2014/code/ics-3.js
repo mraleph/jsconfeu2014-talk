@@ -8,8 +8,8 @@ function Point(x, y) {
 Point.td = new Set(["x", "y"]);
 
 Point.prototype.add = function (other) {
-  this.x = IC$Add$1(this.x, IC$Load$1(other));
-  this.y = IC$Add$2(this.y, IC$Load$2(other));
+  IC$Store$1(this, IC$Add$1(IC$Load$10(this), IC$Load$1(other)));
+  IC$Store$2(this, IC$Add$2(IC$Load$11(this), IC$Load$2(other)));
 };
 
 Point.prototype.dot = function (other) {
@@ -69,13 +69,46 @@ function IC$Load$Miss(receiver) {
   try { } catch (e) { }
 }
 
+function IC$Store$Miss(receiver, value) {
+  var propertyName = this.propertyName;
+
+  var ctor = receiver.constructor;
+  if (typeof ctor === "function" &&
+      ctor.td instanceof Set) {
+    var new_handler = null;
+    if (ctor.td.has(propertyName)) {
+      new_handler = CompileOpX(
+          "receiver, value",
+          "receiver.constructor",
+          ctor,
+          "receiver." + propertyName + " = value");
+      print(new_handler)
+    } else if (ctor.td.has("doNotUnderstand")) {
+      new_handler = CompileOpX(
+        "receiver",
+        "receiver.constructor",
+        ctor,
+        "receiver.doNotUnderstand({name: 'set:" + propertyName + "'})");
+    }
+
+    if (new_handler !== null) {
+      new_handler.info = this;
+      install(new_handler);
+      return new_handler(receiver, value);
+    }
+  }
+
+  throw new Error("Trying to store property " + propertyName + " from an unsupported object!");
+  try { } catch (e) { }
+}
+
 function makeName(icType, id) {
   return "IC$" + icType + "$" + id;
 }
 
 function CompileUninitialized(info) {
-  function Handler(obj) {
-    return Handler.info.miss(obj);
+  function Handler() {
+    return Handler.info.miss.apply(Handler.info, arguments);
   }
 
   Handler.info = info;
@@ -152,6 +185,29 @@ CompileUninitialized({
   icName: makeName("Load", 4),
   miss: IC$Load$Miss
 });
+CompileUninitialized({
+  propertyName: "x",
+  icName: makeName("Load", 10),
+  miss: IC$Load$Miss
+});
+CompileUninitialized({
+  propertyName: "y",
+  icName: makeName("Load", 11),
+  miss: IC$Load$Miss
+});
+
+CompileUninitialized({
+  propertyName: "x",
+  icName: makeName("Store", 1),
+  miss: IC$Store$Miss
+});
+CompileUninitialized({
+  propertyName: "y",
+  icName: makeName("Store", 2),
+  miss: IC$Store$Miss
+});
+
+
 //CompileOpX("Load", "obj", "obj.constructor", Point, "obj.x", 1);
 //CompileOpX("Load", "obj", "obj.constructor", Point, "obj.y", 2);
 //CompileOpX("Load", "obj", "obj.constructor", Point, "obj.x", 3);
@@ -166,7 +222,7 @@ function CompileOp(op_name, op, id) {
       /* ${name} */
       if (typeof x !== "number" ||
           typeof y !== "number") {
-        return IC$Op$Miss(name, x, y);
+        return Handler.info.miss(name, x, y);
       }
       return op(x, y);
     };
@@ -197,7 +253,7 @@ for (var i = 0; i < 1; i++) {
 
 function sum(points, start, end) {
   var point = new Point(0, 0);
-  for (var i = start; IC$Lt$0(i, IC$Load$5(points)); i = IC$Add$0(i, 1)) {
+  for (var i = start; IC$Lt$0(i /*, IC$Load$5(points)*/, end); i = IC$Add$0(i, 1)) {
     IC$Invoke$0(point, IC$Load$6(points, i));
   }
   return point.dot(point);

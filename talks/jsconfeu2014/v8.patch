@@ -27,6 +27,34 @@ Index: Makefile
  	svn checkout --force http://googletest.googlecode.com/svn/trunk \
  	    testing/gtest --revision 692
  	svn checkout --force http://googlemock.googlecode.com/svn/trunk \
+Index: src/ast.cc
+===================================================================
+--- src/ast.cc	(revision 23534)
++++ src/ast.cc	(working copy)
+@@ -593,7 +593,9 @@
+     Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
+     // If the function is in new space we assume it's more likely to
+     // change and thus prefer the general IC code.
+-    if (!it->isolate()->heap()->InNewSpace(*candidate)) {
++    if (!it->isolate()->heap()->InNewSpace(*candidate) ||
++        (it->name()->IsString() &&
++         Handle<String>::cast(it->name())->Get(0) == 'I')) {
+       target_ = candidate;
+       return true;
+     }
+Index: src/hydrogen-escape-analysis.cc
+===================================================================
+--- src/hydrogen-escape-analysis.cc	(revision 23534)
++++ src/hydrogen-escape-analysis.cc	(working copy)
+@@ -11,7 +11,7 @@
+ bool HEscapeAnalysisPhase::HasNoEscapingUses(HValue* value, int size) {
+   for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
+     HValue* use = it.value();
+-    if (use->HasEscapingOperandAt(it.index())) {
++    if (use->HasEscapingOperandAt(it.index()) && use->block()->IsReachable()) {
+       if (FLAG_trace_escape_analysis) {
+         PrintF("#%d (%s) escapes through #%d (%s) @%d\n", value->id(),
+                value->Mnemonic(), use->id(), use->Mnemonic(), it.index());
 Index: src/hydrogen-instructions.cc
 ===================================================================
 --- src/hydrogen-instructions.cc	(revision 23534)
@@ -60,23 +88,31 @@ Index: src/hydrogen-instructions.cc
    if (FLAG_fold_constants && value()->IsConstant()) {
      HConstant* constant = HConstant::cast(value());
      String* type_string = TypeOfString(constant, isolate());
-@@ -2466,13 +2478,20 @@
+@@ -2465,7 +2477,19 @@
+   HValue* candidate = NULL;
    int count = OperandCount();
    int position = 0;
++#if 1
    while (position < count && candidate == NULL) {
--    HValue* current = OperandAt(position++);
--    if (current != this) candidate = current;
 +    HValue* current = OperandAt(position);
 +    if (block()->predecessors()->at(position)->IsReachable() && current != this) candidate = current;
 +    position++;
-   }
-   while (position < count) {
--    HValue* current = OperandAt(position++);
--    if (current != this && current != candidate) return NULL;
++  }
++  while (position < count) {
 +    HValue* current = OperandAt(position);
 +    if (block()->predecessors()->at(position)->IsReachable() && current != this && current != candidate) return NULL;
 +    position++;
++  }
++#else
++  while (position < count && candidate == NULL) {
+     HValue* current = OperandAt(position++);
+     if (current != this) candidate = current;
    }
+@@ -2473,6 +2497,12 @@
+     HValue* current = OperandAt(position++);
+     if (current != this && current != candidate) return NULL;
+   }
++#endif
 +
 +  if (candidate == this) {
 +    return NULL;
@@ -85,7 +121,7 @@ Index: src/hydrogen-instructions.cc
    DCHECK(candidate != this);
    return candidate;
  }
-@@ -3487,6 +3506,15 @@
+@@ -3487,6 +3517,15 @@
  }
  
  
@@ -101,7 +137,7 @@ Index: src/hydrogen-instructions.cc
  HValue* HLoadKeyedGeneric::Canonicalize() {
    // Recognize generic keyed loads that use property name generated
    // by for-in statement as a key and rewrite them into fast property load
-@@ -3631,11 +3659,22 @@
+@@ -3631,11 +3670,22 @@
  
  HType HPhi::CalculateInferredType() {
    if (OperandCount() == 0) return HType::Tagged();
@@ -128,7 +164,7 @@ Index: src/hydrogen-instructions.cc
    return result;
  }
  
-@@ -4470,7 +4509,9 @@
+@@ -4470,7 +4520,9 @@
  Representation HPhi::RepresentationFromInputs() {
    Representation r = Representation::None();
    for (int i = 0; i < OperandCount(); ++i) {
@@ -152,6 +188,18 @@ Index: src/hydrogen-instructions.h
    DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot)
  
   protected:
+Index: src/hydrogen-redundant-phi.cc
+===================================================================
+--- src/hydrogen-redundant-phi.cc	(revision 23534)
++++ src/hydrogen-redundant-phi.cc	(working copy)
+@@ -49,6 +49,7 @@
+       HValue* replacement = phi->GetRedundantReplacement();
+       if (replacement != NULL) {
+         phi->SetFlag(HValue::kIsDead);
++        // printf("phi v%d is dead and replaced with v%d\n", phi->id(), replacement->id());
+         for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+           HValue* value = it.value();
+           value->SetOperandAt(it.index(), replacement);
 Index: src/hydrogen.cc
 ===================================================================
 --- src/hydrogen.cc	(revision 23534)
@@ -182,7 +230,7 @@ Index: src/hydrogen.cc
    // Must be performed before canonicalization to ensure that Canonicalize
    // will not remove semantically meaningful ToInt32 operations e.g. BIT_OR with
    // zero.
-@@ -5410,6 +5415,15 @@
+@@ -5410,6 +5415,19 @@
            mode = HLoadContextSlot::kNoCheck;
            break;
        }
@@ -191,6 +239,10 @@ Index: src/hydrogen.cc
 +        Handle<Object> ctx(HConstant::cast(context->ActualValue())->handle(isolate()));
 +        HConstant* instr =
 +          New<HConstant>(Handle<Object>(Handle<FixedArray>::cast(ctx)->get(variable->index()), isolate()));
++        // printf("%s [%d]\n", variable->name()->ToCString().get(), variable->index());
++        // Handle<FixedArray>::cast(ctx)->get(variable->index())->Print();
++        // ctx->Print();
++        // printf("\n");
 +        return ast_context()->ReturnInstruction(instr, expr->id());
 +      }
 +
@@ -198,7 +250,18 @@ Index: src/hydrogen.cc
        HLoadContextSlot* instr =
            new(zone()) HLoadContextSlot(context, variable->index(), mode);
        return ast_context()->ReturnInstruction(instr, expr->id());
-@@ -9840,6 +9854,15 @@
+@@ -9058,6 +9076,10 @@
+         Handle<GlobalObject> global(current_info()->global_object());
+         known_global_function = expr->ComputeGlobalTarget(global, &it);
+       }
++      // printf("%s -> [%s] %s\n",
++      //       var->name()->ToCString().get(),
++      //       type == kUseCell ? "kUseCell" : "!kUseCell",
++      //       known_global_function ? "known" : "not-known");
+       if (known_global_function) {
+         Add<HCheckValue>(function, expr->target());
+ 
+@@ -9840,6 +9862,15 @@
  }
  
  
@@ -214,7 +277,7 @@ Index: src/hydrogen.cc
  void HOptimizedGraphBuilder::VisitTypeof(UnaryOperation* expr) {
    CHECK_ALIVE(VisitForTypeOf(expr->expression()));
    HValue* value = Pop();
-@@ -10614,6 +10637,24 @@
+@@ -10614,6 +10645,24 @@
    CHECK_ALIVE(VisitForTypeOf(sub_expr));
    SetSourcePosition(expr->position());
    HValue* value = Pop();
@@ -243,37 +306,48 @@ Index: src/ia32/lithium-ia32.cc
 ===================================================================
 --- src/ia32/lithium-ia32.cc	(revision 23534)
 +++ src/ia32/lithium-ia32.cc	(working copy)
-@@ -868,11 +868,11 @@
+@@ -867,13 +867,23 @@
+ 
    LInstruction* instr = NULL;
    if (current->CanReplaceWithDummyUses()) {
++#if 1
      if (current->OperandCount() == 0) {
--      instr = DefineAsRegister(new(zone()) LDummy());
 +      instr = DefineAsSpilled(new(zone()) LDummy(), 0);
-     } else {
-       DCHECK(!current->OperandAt(0)->IsControlInstruction());
--      instr = DefineAsRegister(new(zone())
--          LDummyUse(UseAny(current->OperandAt(0))));
++    } else {
++      DCHECK(!current->OperandAt(0)->IsControlInstruction());
 +      instr = DefineAsSpilled(new(zone())
 +          LDummyUse(UseAny(current->OperandAt(0))), 0);
++    }
++#else
++    if (current->OperandCount() == 0) {
+       instr = DefineAsRegister(new(zone()) LDummy());
+     } else {
+       DCHECK(!current->OperandAt(0)->IsControlInstruction());
+       instr = DefineAsRegister(new(zone())
+           LDummyUse(UseAny(current->OperandAt(0))));
      }
++#endif
      for (int i = 1; i < current->OperandCount(); ++i) {
        if (current->OperandAt(i)->IsControlInstruction()) continue;
+       LInstruction* dummy =
 Index: src/lithium-allocator.cc
 ===================================================================
 --- src/lithium-allocator.cc	(revision 23534)
 +++ src/lithium-allocator.cc	(working copy)
-@@ -543,6 +543,10 @@
+@@ -543,6 +543,12 @@
    // successor edges.
    BitVector* live_out = new(zone()) BitVector(next_virtual_register_, zone());
  
++#if 1
 +  if (!block->IsReachable()) {
 +    return live_out;
 +  }
++#endif
 +
    // Process all successor blocks.
    for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
      // Add values live on entry to the successor. Note the successor's
-@@ -930,6 +934,8 @@
+@@ -930,6 +936,8 @@
        DCHECK(!IsGapAt(index));
        LInstruction* instr = InstructionAt(index);
  
@@ -282,16 +356,28 @@ Index: src/lithium-allocator.cc
        if (instr != NULL) {
          LOperand* output = instr->Output();
          if (output != NULL) {
-@@ -1248,8 +1254,10 @@
+@@ -1248,8 +1256,15 @@
        int operand_index = iterator.Current();
        for (int i = 0; i < block->predecessors()->length(); ++i) {
          HBasicBlock* cur = block->predecessors()->at(i);
--        LiveRange* cur_range = LiveRangeFor(operand_index);
--        ResolveControlFlow(cur_range, block, cur);
++#if 1
 +        if (cur->IsReachable()) {
 +          LiveRange* cur_range = LiveRangeFor(operand_index);
 +          ResolveControlFlow(cur_range, block, cur);
 +        }
++#else
+         LiveRange* cur_range = LiveRangeFor(operand_index);
+         ResolveControlFlow(cur_range, block, cur);
++#endif
        }
        iterator.Advance();
      }
+@@ -1706,7 +1721,7 @@
+   if (!range->TopLevel()->HasAllocatedSpillOperand()) return;
+ 
+   int index = range->TopLevel()->GetSpillOperand()->index();
+-  if (index >= 0) {
++  if (index > 0) {
+     reusable_slots_.Add(range, zone());
+   }
+ }

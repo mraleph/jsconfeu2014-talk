@@ -1,0 +1,6 @@
+#!/bin/sh
+
+gsed -r -e 's/^(\s*)--(.*)$/\1\/\/\2/g' \
+        -e 's/function\s+(\w+):(\w+)\s*(\([^\)]*\))/\1.prototype.\2 = function \3 {/g' \
+        -e 's/end/}/g' \
+        -e 's/self/this/g' $1
