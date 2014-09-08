@@ -1,0 +1,72 @@
+diff --git a/src/lithium-allocator.cc b/src/lithium-allocator.cc
+index 8263c5f..18139ab 100644
+--- a/src/lithium-allocator.cc
++++ b/src/lithium-allocator.cc
+@@ -554,6 +554,10 @@ BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
+     // Add values live on entry to the successor. Note the successor's
+     // live_in will not be computed yet for backwards edges.
+     HBasicBlock* successor = it.Current();
++    if (!successor->IsReachable()) {
++      continue;
++    }
++
+     BitVector* live_in = live_in_sets_[successor->block_id()];
+     if (live_in != NULL) live_out->Union(*live_in);
+ 
+@@ -1328,21 +1332,43 @@ void LAllocator::BuildLiveRanges() {
+       // loop instruction to the last for each value live on entry to the
+       // header.
+       HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
+-      BitVector::Iterator iterator(live);
+-      LifetimePosition start = LifetimePosition::FromInstructionIndex(
+-          block->first_instruction_index());
+-      LifetimePosition end = LifetimePosition::FromInstructionIndex(
+-          back_edge->last_instruction_index()).NextInstruction();
+-      while (!iterator.Done()) {
+-        int operand_index = iterator.Current();
+-        LiveRange* range = LiveRangeFor(operand_index);
+-        range->EnsureInterval(start, end, zone());
+-        iterator.Advance();
+-      }
++      // const ZoneList<HBasicBlock*>* blocks = block->loop_information()->blocks();
++      // printf("need to cover B%d - B%d, [%d, %d)\n",
++      //       block->block_id(), back_edge->block_id(),
++      //       LifetimePosition::FromInstructionIndex(block->first_instruction_index()).Value(),
++      //       LifetimePosition::FromInstructionIndex(
++      //      back_edge->last_instruction_index()).NextInstruction().Value());
++      for (int i = back_edge->block_id(); i >= block->block_id(); --i) {
++        HBasicBlock* lb = blocks->at(i);
++        // printf("loop block B%d\n", lb->block_id());
++        if (!lb->IsReachable()) {
++          continue;
++        }
+ 
+-      for (int i = block->block_id() + 1; i <= back_edge->block_id(); ++i) {
+-        live_in_sets_[i]->Union(*live);
++        LifetimePosition start = LifetimePosition::FromInstructionIndex(
++            lb->first_instruction_index());
++        LifetimePosition end = LifetimePosition::FromInstructionIndex(
++            lb->last_instruction_index()).NextInstruction();
++
++        // printf("  + [%d, %d)\n",
++        //       start.Value(),
++        //       end.Value());
++
++        BitVector::Iterator iterator(live);
++        while (!iterator.Done()) {
++          int operand_index = iterator.Current();
++          // printf("  | %d\n", operand_index);
++          LiveRange* range = LiveRangeFor(operand_index);
++          range->EnsureInterval(start, end, zone());
++          iterator.Advance();
++        }
++
++        live_in_sets_[lb->block_id()]->Union(*live);
+       }
++
++      // for (int i = block->block_id() + 1; i <= back_edge->block_id(); ++i) {
++      //  live_in_sets_[i]->Union(*live);
++      // }
+     }
+ 
+ #ifdef DEBUG
