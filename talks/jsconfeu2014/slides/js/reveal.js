@@ -1056,6 +1056,8 @@ var Reveal = (function(){
 			dom.slides.style.width = slideWidth + 'px';
 			dom.slides.style.height = slideHeight + 'px';
 
+			console.log("(%s x %s)", slideWidth, slideHeight);
+
 			// Determine scale of content to fit within available space
 			scale = Math.min( availableWidth / slideWidth, availableHeight / slideHeight );
 
@@ -1084,6 +1086,8 @@ var Reveal = (function(){
 					continue;
 				}
 
+				slide.style.fontSize = '1.0em';
+
 				if( config.center || slide.classList.contains( 'center' ) ) {
 					// Vertical stacks are not centred since their section
 					// children will be
@@ -1091,6 +1095,27 @@ var Reveal = (function(){
 						slide.style.top = 0;
 					}
 					else {
+						var curHeight = getAbsoluteHeight( slide );
+						var freeSpace = (slideHeight - curHeight) / slideHeight;
+
+						if (slide.querySelector("pre.bigger") && freeSpace < 1 && false) {
+							var minSpace = 0.45;
+							var scale = 2.0;
+							while (freeSpace > minSpace && scale < 5.0) {
+								slide.style.fontSize = scale.toFixed(2) + "em";
+								var freeSpace = (slideHeight - getAbsoluteHeight(slide)) / slideHeight;
+								scale += 0.2;
+								console.log("%s - %s - %s", i, scale.toFixed(2), freeSpace)
+							}
+							do {
+								slide.style.fontSize = scale.toFixed(2) + "em";
+								var freeSpace = (slideHeight - getAbsoluteHeight(slide)) / slideHeight;
+								scale -= 0.2;
+								console.log("%s - %s - %s", i, scale.toFixed(2), freeSpace)
+							} while (freeSpace < minSpace && scale > 1);
+						}
+						console.log("%s %s", i, freeSpace);
+
 						slide.style.top = Math.max( - ( getAbsoluteHeight( slide ) / 2 ) - slidePadding, -slideHeight / 2 ) + 'px';
 					}
 				}
