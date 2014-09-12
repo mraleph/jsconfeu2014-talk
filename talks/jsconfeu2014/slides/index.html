@@ -52,17 +52,20 @@
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="dart">
-class Vector {
-  var x, y;
+          <pre class="bigger"><code data-trim data-noescape class="smalltalk">
+Object subclass: #Vector
+  instanceVariableNames: 'x y'
+  classVariableNames: ''
+  poolDictionaries: ''
+  category: nil!
 
-  Vector(this.x, this.y);
+!Vector class methodsFor: 'instance creation'!
+  x: anXNumber y: anYNumber
+    ^self new x: anXNumber y: anYNumber!!
 
-  // Dot-product of two vectors
-  dot(other) =>
-    x * other.x + y * other.y;
-}
-</code></pre>
+!Vector methodsFor: 'math'!
+  dot: aOther
+    ^ (self x * aOther x) + (self y * aOther y)!!</code></pre>
         </section>
 
         <section>
