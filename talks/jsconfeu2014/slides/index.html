@@ -45,6 +45,23 @@
 				<section data-background="images/slide-1-1.png" data-background-size="contain">
 				</section>
 
+        <section>
+          <pre class="bigger"><code data-trim data-noescape class="smalltalk">
+Object subclass: #Vector
+  instanceVariableNames: 'x y'
+  classVariableNames: ''
+  poolDictionaries: ''
+  category: nil!
+
+!Vector class methodsFor: 'instance creation'!
+  x: anXNumber y: anYNumber
+    ^ self new x: anXNumber y: anYNumber!!
+
+!Vector methodsFor: 'math'!
+  dot: aOther
+    ^ (self x * aOther x) + (self y * aOther y)!!</code></pre>
+        </section>
+
 				<section>
 					<h1>I'm Slava</h1>
 					<h3>I like compiling things</h3>
@@ -61,7 +78,7 @@ Object subclass: #Vector
 
 !Vector class methodsFor: 'instance creation'!
   x: anXNumber y: anYNumber
-    ^self new x: anXNumber y: anYNumber!!
+    ^ self new x: anXNumber y: anYNumber!!
 
 !Vector methodsFor: 'math'!
   dot: aOther
@@ -69,92 +86,111 @@ Object subclass: #Vector
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="bash">
-#!/bin/sh
+          <pre class="mediumer"><code data-trim data-noescape class="javascript">
+var fs = require('fs');
 
-# dart2js compiler
+var input = process.argv[2];
+var result = fs.readFileSync(input)
+  .toString()
+  .replace(/\^/g, "return ")
+  .replace(/!(\w+) methodsFor: '[^']*'!((?:.|\n)*?!)!/g,
+           function (_, n, methods) {
+    prefix = n + '.prototype.';
+    methods = methods.replace(/((?:.|\n)*?)!/g, function (_, method) {
+      return method.replace(/\n/g, '')
+                   .replace(/^\s*(\w+\s*(:\s*\w+(\s*\w+\s*:\s*\w+)*)?)(.*)$/,
+                            function (_, c, _, _, body) {
+        var name =  c.replace(/\s*:\s*\w+\s*/g, '$').trim();
+        var args = c.replace(/\s*\w+\s*:/g, '').trim().replace(/\s+/g, ', ');
+        var locals = ['self'].concat(args.split(','));
+        locals.forEach(function (arg) {
+          body = body.replace(new RegExp(arg + "\\s+", "g"), arg + ".");
+        })
+        return prefix + name + ' = function (' + args + ') {' + body + "}\n";
+      });
+    })   
+    return methods;
+  })
 
-gsed -r \
-  -e 's/^(\(.*\)) => (.+);$/:function\1{\2};/g' \
-  -e 's/class (\w+) {/\1.prototype = {/g' \
-  -e 's/\w()/this/g' $1 > $1.js
+fs.writeFileSync(input + ".js", result);
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 // Dot-product of two vectors
-Vector.prototype.dot = function (other) {
-  return this.x * other.x +
-         this.y * other.y
+Vector.prototype.dot$ = function (aOther) {
+  return this.x * aOther.x +
+         this.y * aOther.y
 }
 </code></pre>
         </section>
 
-				<section>
+				<section class="B">
 					<h1><b>that was easy</b></h1>
 					<h3>amazing ZERO overhead translation</h3>
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="dart">
-var d = v.dot(10)
-// Unhandled exception:
-// Class 'int' has no instance getter 'x'.
+          <pre class="bigger2"><code data-trim data-noescape class="smalltalk">
+v := (Vector x: 10 y: 10).
+(v dot: 10).
+"Object: 10 error: did not understand #x"
 </code></pre>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-var d = v.dot(10)
-// d = NaN
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+var v = new Vector(10, 10)
+v.dot(10)
+// &rArr; NaN
 </code></pre>
         </section>
 
-				<section>
-					<h2>Lua, Ruby, Python, ...</h2>
+				<section class="B">
+					<h2>Lua, Ruby, Python, &hellip;</h2>
 					<h3>the story is the same</h3>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1><b>semantik</b></h1>
-					<h3><em style="color: gray; letter-spacing: 0.2em;">\zeˈmantɪk\</em></h3>
+					<h2><em style="color: gray; letter-spacing: 0.2em;  font-size: 0.9em;">\zeˈmantɪk\</em></h2>
 				</section>
 
 
-				<section>
+				<section class="B">
 					<h1><b>σημαντικός</b></h1>
-					<h3><em style="color: gray; letter-spacing: 0.2em;">\simantikós\</em></h3>
+					<h2><em style="color: gray; letter-spacing: 0.2em; font-size: 0.9em;">\simantikós\</em></h2>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1><b>significant</b></h1>
-					<h3><em style="color: gray; letter-spacing: 0.2em;">\sig-ˈni-fi-kənt\</em></h3>
+					<h2><em style="color: gray; letter-spacing: 0.2em; font-size: 0.9em;">\sigˈnifikənt\</em></h2>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>how to match semantics?</h1>
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 // Dot-product of two vectors
 Vector.prototype.dot = function (other) {
-  return Add(Mul(Load(this, 'x'),
-                 Load(other, 'x')),
-             Mul(Load(this, 'y'),
-                 Load(other, 'y')))
+  return Send(Send(Send(this, 'x'), '*',
+                   Send(other, 'x')), '+'
+              Send(Send(this, 'y'), '*'
+                   Send(other, 'y')))
 }
 </code></pre>
         </section>
 
-				<section>
+				<section class="B">
 					<h1><b>looks slow</b></h1>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1><b>lets "benchmark"</b></h1>
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 function lensum(vs, start, end) {
   var v = new Vector(0, 0)
   for (var i = start; i < end; i++)
@@ -164,60 +200,70 @@ function lensum(vs, start, end) {
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 // this.x
-&rArr; Load(this, 'x')
+&rArr; Send(this, 'x')
+// this.x = k;
+&rArr; Send(this, 'x:', k)
 // v.add(vs[i])
-&rArr; Invoke(v, 'add', LoadIndexed(vs, i))
+&rArr; Send(v, 'add:', Send(vs, 'at:', i))
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-function Get(self, key) {
-  return self[key];
-}
-
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 var slice = Array.prototype.slice;
-function Invoke(self, key /*, ... */) {
-  return self[key].apply(self,
+function Send(self, message /*, ... */) {
+  return self[message].apply(self,
     slice.call(arguments, 2));
 }
-
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+Number.prototype['+'] = function (other) {
+  'use strict';
+  return this + other;
+}
+
+Array.prototype['at:'] = function (idx) {
+  return this[idx];
+}
+</code></pre>
+        </section>
+
+        <section>
+          <pre class="bigger3">
 $ d8 s0.js
-lensum x <span class="green">26,423</span> ops/sec
+lensum x <span class="green">30,034</span> ops/sec
 $ d8 s1.js
-lensum x <span class="red">46.28</span> ops/sec
-<em># that's 574x slower</em>
+lensum x <span class="red">6.30</span> ops/sec
+<em># that's <span class="red">4767x</span> slower</em>
 </pre>
         </section>
 
-				<section>
-					<h1>"runtime" is&nbsp;polymorphic</h1>
+        <section class="B">
+          <h1><code>Send()</code> is too polymorphic</h1>
+          <h4>[&amp; can't be optimized by V8]</h4>
+        </section>
+
+				<section data-background="images/ir-9.png" data-background-size="contain">
 				</section>
 
-				<section data-background="images/ir-1.png" data-background-size="contain">
-				</section>
-
-				<section>
-					<h1>"Universal VM" &mdash; a lie?</h1>
+				<section class="B">
+					<h1>"Universal VM"<br/>= a lie?</h1>
 				</section>
 
 				<section data-background="images/slide2.png" data-background-size="contain">
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>JIT <b>is</b> a superhero.</h1>
 					<h3>but it needs a sidekick</h3>
 				</section>
 
-				<section>
-					<h3>There is a community that boasts</h3>
+				<section class="B">
 					<ul>
 						<li>easy to learn language</li>
 						<li>with vibrant ecosystem</li>
@@ -227,11 +273,11 @@ lensum x <span class="red">46.28</span> ops/sec
 					</ul>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>Java</h1>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1 style="font-family: Monaco, monospace;"><span style=" font-size: 0.8em;">invokedynamic</span></h1>
 				</section>
 
@@ -245,7 +291,7 @@ lensum x <span class="red">46.28</span> ops/sec
           </div>
 				</section>
 
-				<section>
+				<section class="B">
           <div style="max-width: 50%; margin-left: auto; margin-right: auto;">
   					<p style="text-align:justify;">&laquo;<span class="anti-fade">A <code>CallSite</code> is</span> <span class="fade-away">a holder for</span><span class="anti-fade"> a variable</span> <span class="fade-away"><code>MethodHandle</code>, which is called its <em>target</em>. An <code>invokedynamic</code> instruction linked to a</span> <span class="fade-away"><code>CallSite</code> delegates all calls to the site's current target.</span> <span class="fade-away">A <code>CallSite</code> may be associated with several <code>invokedynamic</code> instructions, or it may be "free floating", associated with none. In any case, it may be invoked through an associated method handle called its <em>dynamic invoker</em>.</span></p>
   					<p>&hellip;</p>
@@ -255,95 +301,98 @@ lensum x <span class="red">46.28</span> ops/sec
           </div>
 				</section>
 
-				<section>
-					<h1>in JS<br/>every invoke is&nbsp;dynamic</h1>
+				<section class="B">
+					<h1>in JS every invoke<br/> is&nbsp;dynamic</h1>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>CallSite</h1>
 					<h1 style="font-family: Monaco, monospace;"><span style=" font-size: 0.8em;"><span class="dr">var</span> f</span></h1>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>invokedynamic</h1>
 					<h1 style="font-family: Monaco, monospace;"><span style=" font-size: 0.8em;"><span class="dr">f</span>(...)</span></h1>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>MethodHandle</h1>
 					<h1 style="font-family: Monaco, monospace;"><span style=" font-size: 0.6em;"><span class="dr">function</span> (...) { }</span></h1>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>(re)linking</h1>
 					<h1 style="font-family: Monaco, monospace;"><span style=" font-size: 0.6em;">f <span class="dr">=</span> someFunc</span></h1>
 				</section>
 
-				<section>
-					<h1>lets put it together</h1>
+				<section class="B">
+					<h1>put it together</h1>
 				</section>
 
-        <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+        <section class="B">
+          <pre class="bigger3"><code data-trim data-noescape class="javascript">
 this.x += other.x;
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-Store(this, 'x',
-    Add(Load(this, 'x'),
-        Load(other, 'x')));
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+Send(this, 'x:',
+     Send(Send(this, 'x'), '+',
+          Send(other, 'x')));
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-ΣStore$0(this,
-    ΣAdd$0(ΣLoad$0(this),
-           ΣLoad$1(other)));
-        // ^^^^^^^ global var for call site
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+ΣSend$00(this,
+         ΣSend$01(ΣSend$02(this),
+                  ΣSend$03(other)));
+//                &uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr; 
+// global var for send site
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-ΣLoad$0 = function (self) {
-	return self.x;
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+ΣSend$00 = function (self, value) {
+	return Send(self, 'x:', value);
 };
-ΣLoad$1 = function (self) {
-	return self.x;
-};
-ΣAdd$0 = function (lhs, rhs) {
-	return lhs * rhs;
+ΣSend$01 = function (x, y) {
+  return Send(x, '+', y);
 };
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-new Load(0, 'x').bootstrap();
-new Load(1, 'x').bootstrap();
-new Add(0).bootstrap();
+          <pre class="bigger3"><code data-trim data-noescape class="javascript">
+new SendSite(0, 'x:')
+  .bootstrap();
+new SendSite(1, '+')
+  .bootstrap();
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-function Load(id, key) {
-  CallSite.call(this, id);
-  this.key = key;
-}
-inherit(Load, CallSite);
-</code></pre>
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+function SendSite(id, message) {
+  this.name = "ΣSend$" +
+      _.padLeft(id, 2, '0');
+  this.message = message;
+  this.argc    = isBinaryOp(message) ?
+      2 : (message.split(':').length - 1);
+}</code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-Load.prototype.bootstrap = function () {
-  this.<u class="dr">link</u>(<u class="dr">CompileHandler</u>({
-    args: ['self'],
-    op: 'self.' + this.key
+          <pre class="bigger15"><code data-trim data-noescape class="javascript">
+SendSite.prototype.bootstrap = function () {
+  var args = _.range(this.argc)
+      .map(function (n) { return 'a' + n });
+  this.link(CompileHandler({
+    args: ['self'].concat(args),
+    op: 'self["' + this.message + '"]' +
+        '(' + args.join(', ') + ')'
   }));
 };</code></pre>
         </section>
@@ -368,7 +417,7 @@ function Compile(desc) {
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger3"><code data-trim data-noescape class="javascript">
 function Handler($args) {
   /* $uid */
   return $op;
@@ -377,25 +426,25 @@ function Handler($args) {
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-// Handler for ΣLoad$0
+          <pre class="bigger3"><code data-trim data-noescape class="javascript">
+// Handler for ΣSend$10
 function Handler(self) {
-  /* 1 */
-  return self.x;
+  /* 11 */
+  return self["x"]();
 }</code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-// Handler for ΣAdd$0
-function Handler(lhs,rhs) {
-  /* 12 */
-  return lhs + rhs;
+          <pre class="bigger3"><code data-trim data-noescape class="javascript">
+// Handler for ΣSend$16
+function Handler(self,a0,a1) {
+  /* 17 */
+  return self["+"](a0, a1);
 }</code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 CallSite.prototype = {
   <b>link</b>: function (handler) {
     handler.site = this;
@@ -406,21 +455,28 @@ CallSite.prototype = {
         </section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger3">
 $ d8 s0.js
-lensum x <span class="green">26,285</span> ops/sec
+lensum x <span class="green">30,034</span> ops/sec
 $ d8 s2.js
-lensum x <span class="green">26,446</span> ops/sec
+lensum x <span class="yellow">9,267</span> ops/sec
+# now "only" <span class="yellow">~3x</span> slower
 </pre>
         </section>
 
-				<section>
-					<h1><b>that was easy</b></h1>
-					<h3>but semantics is still wrong!</h3>
+        <section data-background="images/ir-10.png" data-background-size="contain">
+        </section>
+
+				<section class="B">
+					<h1>numerics went bananas</h1>
 				</section>
 
+        <section class="B">
+          <h1>specialize!</h1>
+        </section>
+
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 function Handler($args) {
   /* $uid */
   if (<span class="udr">$check</span>) {
@@ -431,7 +487,8 @@ function Handler($args) {
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+// if isBinaryOp(this.message)
 CompileHandler({
   args: ['lhs', 'rhs'],
   op: 'lhs ' + this.op + ' rhs',
@@ -441,25 +498,25 @@ CompileHandler({
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-// Handler ΣAdd$0.
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+// Handler ΣSend$15.
 function Handler(lhs,rhs) {
-  /* 12 */
-  if (typeof lhs === "number" &&
+  /* 16 */
+  if (typeof lhs === "number" && 
       typeof rhs === "number") {
-    return lhs + rhs;
+    return lhs < rhs;
   }
   return Handler.site.miss(lhs,rhs);
 }</code></pre>
         </section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger3">
 $ d8 s0.js
-lensum x <span class="green">27,207</span> ops/sec
+lensum x <span class="green">30,034</span> ops/sec
 $ d8 s3.js
-lensum x <span class="yellow">21,919</span> ops/sec
-<em># <span class="yellow">~20%</span> slower</em>
+lensum x <span class="yellow">22,738</span> ops/sec
+<em># <span class="yellow">~25%</span> slower</em>
 </pre>
         </section>
 
@@ -469,26 +526,39 @@ lensum x <span class="yellow">21,919</span> ops/sec
 				<section data-background="images/ir-3.png" data-background-size="contain">
 				</section>
 
-				<section>
-					<h1>hope is still&nbsp;alive!</h1>
+				<section class="B">
+					<h1>hope is back!</h1>
 				</section>
 
-				<section>
-					<h1>lets fix loads!</h1>
+				<section class="B">
+					<h1>semantics<br/>is still broken</h1>
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-Vector.fields = new Set(["x", "y"]);
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+var v = new Vector(10, 10)
+v[':dot'](10)
+// TypeError: undefined is not a function
 </code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-// ΣLoad handler
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+Vector.understands = new Set([
+  'x', 'x:',
+  'y', 'y:',
+  'add:',
+  'dot:'
+]);
+</code></pre>
+        </section>
+
+        <section>
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+// ΣSend handler for 'x'
 function Handler(self) {
   if (<span class="udr">???</span>) {
-    return self.x;
+    return self.x();
   }
   return Handler.site.miss(self);
 }
@@ -496,69 +566,70 @@ function Handler(self) {
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-// ΣLoad handler
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+// ΣSend handler for 'x'
 function Handler(self) {
-  if (<span class="udr">self.constructor.fields.has</span>("x")) {
-    return self.x;
+  if (<span class="udr">self.constructor</span>
+          <span class="udr">.understands.has</span>("x")) {
+    return self.x();
   }
   return Handler.site.miss(self);
 }
 </code></pre>
         </section>
 
-				<section>
+				<section class="B">
 					<h1>sloooooow!</h1>
 					<h3>too hard for V8 to optimize</h3>
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-// ΣLoad handler
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+// ΣSend handler for 'x'
 function Handler(self) {
-  if (<span class="udr">self.constructor</span>.fields.has("x")) {
-    return self.x;
+  if (<span class="udr">self.constructor</span>
+          .understands.has("x")) {
+    return self.x();
   }
   return Handler.site.miss(self);
-}
-</code></pre>
+}</code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-// ΣLoad handler
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+// ΣSend handler for 'x'
 function Handler(self) {
   if (self.constructor === <span class="udr">???</span>) {
-    return self.x;
+    return self.x();
   }
   return Handler.site.miss(self);
 }
 </code></pre>
         </section>
 
-				<section>
+				<section class="B">
 					<h2>bootstrap <b>uninitialized</b></h2>
 					<h2>&amp; <b>relink</b> on the miss!</h2>
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 Load.prototype.bootstrap = function () {
   this.link(CompileHandler({
     args: ['self'],
     op: 'null',
-    check: 'false' // <- ALWAYS MISS
+    check: 'false' // &lArr; ALWAYS MISS
   }));
 };</code></pre>
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
-Load.prototype.miss = function (self) {
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+SendSite.prototype.miss = function (self) {
   var ctor = self.constructor;
   if (typeof ctor === "function" &&
-      ctor.fields instanceof Set &&
-      ctor.fields.has(this.key)) {
+      ctor.understands instanceof Set &&
+      ctor.understands.has(this.key)) {
     /* link specialized handler & return */
   }
   throw new Error(...);
@@ -567,11 +638,11 @@ Load.prototype.miss = function (self) {
 
         <section>
           <pre class="bigger"><code data-trim data-noescape class="javascript">
-// ΣLoad$0 specialized handler
+// Specialized handler
 function Template(ctor) {
   return function Handler(self) {
     if (self.constructor === ctor) {
-      return self.x;
+      return self.x();
     }
     return Handler.site.miss(self);
   };
@@ -580,7 +651,7 @@ function Template(ctor) {
 
         <section>
           <pre class="bigger"><code data-trim data-noescape class="javascript">
-// ΣLoad$0 specialized handler
+// Specialized handler
 function Template(<span class="udr">ctor</span>) {
   return function Handler(self) {
     if (self.constructor === <span class="udr">ctor</span>) {
@@ -592,10 +663,10 @@ function Template(<span class="udr">ctor</span>) {
         </section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger3">
 $ d8 s4.js
-lensum x <span class="dr">2,486</span> ops/sec
-<em># <span class="dr">~91%</span> slower</em>
+lensum x <span class="dr">1,48</span> ops/sec
+<em># <span class="dr">20x</span> slower</em>
 </pre>
         </section>
 
@@ -637,11 +708,11 @@ if (!it->isolate()->heap()->InNewSpace(*candidate) ||
         </section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger3">
 $ <span class="dr">d8-x</span> s4.js
-lensum x <span class="yellow">17,735</span> ops/sec
+lensum x <span class="yellow">11,744</span> ops/sec
 <em># we are back in business</em>
-<em># "only" <span class="yellow">~35%</span> slower</em>
+<em># "only" <span class="yellow">2.5x</span> slower</em>
 </pre>
         </section>
 
@@ -655,7 +726,7 @@ lensum x <span class="yellow">17,735</span> ops/sec
 				</section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="cpp">
+          <pre class="bigger15"><code data-trim data-noescape class="cpp">
 if ((variable->maybe_assigned() == kNotAssigned) &&
     context->ActualValue()->IsConstant()) {
   /*
@@ -667,94 +738,97 @@ if ((variable->maybe_assigned() == kNotAssigned) &&
         </section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger3">
 $ <span class="dr">d8-x</span> s4.js
-lensum x <span class="yellow">22,270</span> ops/sec
-<em># "only" <span class="yellow">~20%</span> slower</em>
+lensum x <span class="yellow">23,179</span> ops/sec
+<em># "only" <span class="yellow">~25%</span> slower</em>
 </pre>
         </section>
 
-				<section>
-					<h1>LoadIndexed, Store, Invoke</h1>
+				<section class="B">
+					<h1>only <code>at:</code> left</h1>
 					<h3>as an exercise :)</h3>
 				</section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger3">
 $ <span class="dr">d8-x</span> s5.js
 lensum x <span class="yellow">22,518</span> ops/sec
-<em># still <span class="yellow">~20%</span> slower</em>
+<em># still <span class="yellow">~25%</span> slower</em>
 </pre>
         </section>
 
-				<section>
-					<h1>but now semantics is correct!</h1>
+				<section class="B">
+					<h1>now semantics<br/>is correct!</h1>
 				</section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger2">
 <b>d8&gt;</b> var p = new Vector(0, 0)
-<b>d8&gt;</b> p.dot(10);
-<span class="green">Error: object 10 has no field x</span>
+<b>d8&gt;</b> p[':dot'](10);
+<span class="green">Error: object 10 does not understand x</span>
 <b>d8&gt;</b> lensum([p], 2, 3);
 <span class="green">Error: index 2 out of bounds [0, 1)</span>
 </pre>
         </section>
 
-				<section>
-					<h1>where is 20%?</h1>
+				<section class="B">
+					<h1>where are<br/>these <span class="dr">25%</span>?</h1>
 				</section>
 
-				<section>
+				<section class="B">
 					<h1>compiler&nbsp;issues</h1>
-					<h3 style="max-width: 50%; margin-left: auto; margin-right: auto;">e.g. unreachable blocks are not removed from the graph "poisoning" register allocation</h3>
+					<h4 style="max-width: 50%; margin-left: auto; margin-right: auto; text-align: justify;">e.g. unreachable blocks are not removed from the graph "poisoning" register allocation, bounds check removal does not remove, type propagation does not propagate stuff&hellip;</h4>
 				</section>
 
 				<section data-background="images/slide-3-1.png" data-background-size="contain">
 				</section>
 
         <section>
-          <pre class="bigger ccc">
+          <pre class="bigger3">
 $ <span class="dr">d8-x</span> s5.js
-lensum x <span class="green">25,566</span> ops/sec
-<em># only <span class="green">~6%</span> slower</em>
+lensum x <span class="green">28,055</span> ops/sec
+<em># only <span class="green">~7%</span> slower</em>
 </pre>
         </section>
 
         <section>
-          <pre class="bigger">
+          <pre class="bigger3">
 $ <span class="dr">d8-x</span> s5.js
-lensum x <span class="green">25,566</span> ops/sec
-<em># only <span class="green">~6%</span> slower</em>
-<em># actually depends on CPU at this stage</em>
-<em># generated code is almost the same</em>
+lensum x <span class="green">28,055</span> ops/sec
+<em># only <span class="green">~7%</span> slower</em>
+<em># depends on CPU now</em>
 </pre>
         </section>
 
-        <section>
-        	<h1>JS is one big invokedynamic</h1>
+        <section class="B">
+        	<h1>JavaScript is<br/> <code>invokedynamic</code></h1>
         </section>
 
-        <section>
-        	<h1>totally enough <b class="dr">expressivity</b></h1>
+        <section class="B">
+        	<h1>totally enough<br/><b class="dr">expressivity</b></h1>
         </section>
 
-        <section>
-        	<h1>almost enough <b class="dr">optimizations</b></h1>
+        <section class="B">
+        	<h1>almost enough<br/><b class="dr">optimizations</b></h1>
         </section>
 
-        <section>
-        	<h1>too much <b class="dr">heuristics</b></h1>
+        <section class="B">
+        	<h1>too much<br/><b class="dr">heuristics</b></h1>
         </section>
 
-        <section>
-        	<h1>we need <b class="pinkish">conventions</b></h1>
+        <section class="B">
+        	<h1>we need<br/><b class="pinkish">conventions</b></h1>
         </section>
 
 				<section data-background="images/slide-4-1.png" data-background-size="contain">
 				</section>
 
-        <section>
+        <section class="B">
+          <h1>next challenge: <br/> try compiling <code style="font-weight: 100 !important;">^</code></h1>
+        </section>
+
+        <section class="B">
         	<h1>THANK <span class="pinkish">YOU</span>!</h1>
         </section>
 			</div>
@@ -804,6 +878,46 @@ lensum x <span class="green">25,566</span> ops/sec
         font-size: 1.5em !important;
       }
 
+      pre.bigger15 {
+        font-size: 1.75em !important;
+      }
+
+
+      pre.bigger2 {
+        font-size: 2em !important;
+      }
+
+      pre.bigger3 {
+        font-size: 3em !important;
+      }
+
+      pre.mediumer {
+        font-size: 1.2em !important;
+      }
+
+      .B h1 {
+        font-size: 6em;
+      }
+
+      .B h2 {
+        font-size: 4em;
+      }
+
+      .B h3 {
+        font-size: 2em;
+      }
+
+      .B ul {
+        font-size: 2em;
+        line-height: 1em;
+      }
+
+      /*
+      .B p {
+        font-size: 1.5em;
+      }
+      */
+
       span.green {
         font-weight: bold !important;
         color: green;
@@ -820,6 +934,8 @@ lensum x <span class="green">25,566</span> ops/sec
 
       span.anti-fade {
         font-weight: bold;
+        font-size: 2em;
+        line-height: 1em;
       }
 
       .yellow {
@@ -827,8 +943,8 @@ lensum x <span class="green">25,566</span> ops/sec
         font-weight: bold !important;
       }
 
-      .dr {
-        color: #bf360c;
+      .dr, .dr * {
+        color: #bf360c !important;
         font-weight: bold !important;
       }
 

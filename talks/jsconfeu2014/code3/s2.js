@@ -102,7 +102,7 @@ function SendSite(id, message) {
 }
 
 SendSite.prototype.link = function (f) {
-  // print("linking " + this.name + " to " + f);
+  print("linking " + this.name + " to " + f);
   f.site = this;
   global[this.name] = f;
 };
