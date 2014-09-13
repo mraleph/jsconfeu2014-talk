@@ -369,7 +369,7 @@ Send(this, 'x:',
         <section>
           <pre class="bigger2"><code data-trim data-noescape class="javascript">
 ΣSend$00 = function (self, value) {
-	return Send(self, 'x:', value);
+  return Send(self, 'x:', value);
 };
 ΣSend$01 = function (x, y) {
   return Send(x, '+', y);
@@ -379,8 +379,10 @@ Send(this, 'x:',
 
         <section>
           <pre class="bigger3"><code data-trim data-noescape class="javascript">
-new SendSite(0, 'x:')
+// Manages ΣSend$00
+new SendSite(0, 'x:') 
   .bootstrap();
+// Manages ΣSend$01
 new SendSite(1, '+')
   .bootstrap();
 </code></pre>
@@ -404,7 +406,7 @@ function SendSite(id, message) {
 SendSite.prototype.bootstrap = function () {
   var args = _.range(this.argc)
       .map(function (n) { return 'a' + n });
-  this.link(<span class="udr">CompileHandler</span>({
+  this.link(CompileHandler({
     args: ['self'].concat(args),
     op: 'self["' + this.message + '"]' +
         '(' + args.join(', ') + ')'
@@ -413,8 +415,34 @@ SendSite.prototype.bootstrap = function () {
         </section>
 
         <section>
+          <pre class="bigger15"><code data-trim data-noescape class="javascript">
+SendSite.prototype.bootstrap = function () {
+  <span class="fade-away">var args = _.range(this.argc)
+      .map(function (n) { return 'a' + n });
+  this.link</span>(<span class="udr">CompileHandler</span>(<span class="fade-away">{
+    args: ['self'].concat(args),
+    op: 'self["' + this.message + '"]' +
+        '(' + args.join(', ') + ')'
+  }</span>));
+};</code></pre>
+        </section>
+
+        <section>
+          <pre class="bigger15"><code data-trim data-noescape class="javascript">
+SendSite.prototype.bootstrap = function () {
+  <span class="fade-away">var args = _.range(this.argc)
+      .map(function (n) { return 'a' + n });</span>
+  <span class="udr">this.link</span>(<span class="fade-away">CompileHandler({
+    args: ['self'].concat(args),
+    op: 'self["' + this.message + '"]' +
+        '(' + args.join(', ') + ')'
+  }</span>));
+};</code></pre>
+        </section>
+
+        <section>
           <pre class="bigger"><code data-trim data-noescape class="javascript">
-function Compile(desc) {
+function CompileHandler(desc) {
   function Template() {
     return function Handler($args) {
       /* $uid */
@@ -452,9 +480,9 @@ function Handler(self) {
         <section>
           <pre class="bigger3"><code data-trim data-noescape class="javascript">
 // Handler for ΣSend$16
-function Handler(self,a0,a1) {
+function Handler(self,a0) {
   /* 17 */
-  return self["+"](a0, a1);
+  return self["+"](a0);
 }</code></pre>
         </section>
 
@@ -482,9 +510,17 @@ lensum x <span class="yellow">9,267</span> ops/sec
         <section data-background="images/ir-10.png" data-background-size="contain">
         </section>
 
-				<section class="B">
-					<h1>numerics went bananas</h1>
-				</section>
+        <section class="B">
+          <h1>numerics went bananas</h1>
+        </section>
+
+        <section>
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
+Number.prototype['+'] = function (other) {
+  'use strict';
+  return this + other; /* CONGESTION */
+}</code></pre>          
+        </section>
 
         <section class="B">
           <h1>specialize!</h1>
@@ -552,7 +588,7 @@ lensum x <span class="yellow">22,738</span> ops/sec
         <section>
           <pre class="bigger2"><code data-trim data-noescape class="javascript">
 var v = new Vector(10, 10)
-v[':dot'](10)
+v['dot:'](10)
 // TypeError: undefined is not a function
 </code></pre>
         </section>
@@ -628,8 +664,8 @@ function Handler(self) {
 				</section>
 
         <section>
-          <pre class="bigger2"><code data-trim data-noescape class="javascript">
-Load.prototype.bootstrap = function () {
+          <pre class="bigger15"><code data-trim data-noescape class="javascript">
+SendSite.prototype.bootstrap = function () {
   this.link(CompileHandler({
     args: ['self'],
     op: 'null',
@@ -652,7 +688,7 @@ SendSite.prototype.miss = function (self) {
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 // Specialized handler
 function Template(ctor) {
   return function Handler(self) {
@@ -665,7 +701,7 @@ function Template(ctor) {
         </section>
 
         <section>
-          <pre class="bigger"><code data-trim data-noescape class="javascript">
+          <pre class="bigger2"><code data-trim data-noescape class="javascript">
 // Specialized handler
 function Template(<span class="udr">ctor</span>) {
   return function Handler(self) {
@@ -680,7 +716,7 @@ function Template(<span class="udr">ctor</span>) {
         <section>
           <pre class="bigger3">
 $ d8 s4.js
-lensum x <span class="dr">1,48</span> ops/sec
+lensum x <span class="dr">1,486</span> ops/sec
 <em># <span class="dr">20x</span> slower</em>
 </pre>
         </section>
@@ -691,12 +727,13 @@ lensum x <span class="dr">1,48</span> ops/sec
 				<section data-background="images/ir-5.png" data-background-size="contain">
 				</section>
 
-				<section data-background="images/slide3.png" data-background-size="contain">
+				<section data-background="images/slide-3-1.png" data-background-size="contain">
 				</section>
 
+<!--
 				<section data-background="images/slide4.png" data-background-size="contain">
 				</section>
-
+-->
         <section>
           <pre class="bigger"><code data-trim data-noescape class="cpp">
 // If the function is in new space we assume
@@ -710,9 +747,7 @@ if (!it->isolate()->heap()->InNewSpace(*candidate)) {
 
         <section>
           <pre class="bigger"><code data-trim data-noescape class="cpp">
-// If the function is in new space we assume
-// it's more likely to change and thus prefer
-// the general IC code.
+<span class="dr">// I command thee: inline if the name starts with 'Σ'.</span>
 if (!it->isolate()->heap()->InNewSpace(*candidate) ||
     (it->name()->IsString() &&
      <span class="dr">Handle&lt;String&gt;::cast(
@@ -741,14 +776,16 @@ lensum x <span class="yellow">11,744</span> ops/sec
 				</section>
 
         <section>
-          <pre class="bigger15"><code data-trim data-noescape class="cpp">
-if ((variable->maybe_assigned() == kNotAssigned) &&
-    context->ActualValue()->IsConstant()) {
-  /*
-   * constant fold read-only context variables
-   * accessed from constant contexts.
-   */
-}
+          <pre class="bigger"><code data-trim data-noescape class="cpp">
+case Variable::CONTEXT:
+  if ((variable->maybe_assigned() == kNotAssigned) &&
+      context->ActualValue()->IsConstant()) {
+    /*
+     * constant fold read-only context variables
+     * accessed from constant contexts.
+     */
+  }
+  /* else emit HLoadContextSlot */
 </code></pre>
         </section>
 
@@ -780,7 +817,7 @@ lensum x <span class="yellow">22,518</span> ops/sec
         <section>
           <pre class="bigger2">
 <b>d8&gt;</b> var p = new Vector(0, 0)
-<b>d8&gt;</b> p[':dot'](10);
+<b>d8&gt;</b> p['dot:'](10);
 <span class="green">Error: object 10 does not understand x</span>
 <b>d8&gt;</b> lensum([p], 2, 3);
 <span class="green">Error: index 2 out of bounds [0, 1)</span>
@@ -872,7 +909,7 @@ lensum x <span class="green">28,055</span> ops/sec
 				// parallaxBackgroundSize: '2100px 900px',
 
         margin: 0.0,
-        width: 1920,
+        width: 1950,
         height: 1080,
 
 				// Optional libraries used to extend on reveal.js

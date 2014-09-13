@@ -98,7 +98,7 @@ function SendSite(id, message) {
   this.name = "ΣSend$" + _.padLeft(id, 2, '0');
   this.message = message;
   this.argc    = isBinaryOp(message) ?
-      2 : (message.split(':').length - 1);
+      1 : (message.split(':').length - 1);
 }
 
 SendSite.prototype.link = function (f) {
