@@ -4,10 +4,10 @@
 	<head>
 		<meta charset="utf-8">
 
-		<title>reveal.js - The HTML Presentation Framework</title>
+		<title>invokedynamic.js</title>
 
-		<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
-		<meta name="author" content="Hakim El Hattab">
+		<meta name="description" content="invokedynamic.js">
+		<meta name="author" content="Vyacheslav Egorov">
 
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -62,11 +62,21 @@ Object subclass: #Vector
     ^ (self x * aOther x) + (self y * aOther y)!!</code></pre>
         </section>
 
-				<section>
+				<section class="B">
 					<h1>I'm Slava</h1>
 					<h3>I like compiling things</h3>
 					<h4>and ranting about that on @mraleph</h4>
 				</section>
+
+        <section class="B">
+          <h1>𝔏 &rArr; 𝔑</h1>
+          <h3>𝔏 &in; {Java, JavaScript, Dart, &hellip;}</h3>
+          <h3>𝔑 &in; {ia32, x64, arm, mips, &hellip;}</h3>
+        </section>
+
+        <section class="B">
+          <h1><span class="pinkish">𝔏′ &rArr;</span> 𝔏 &rArr; 𝔑</h1>
+        </section>
 
         <section>
           <pre class="bigger"><code data-trim data-noescape class="smalltalk">
@@ -87,8 +97,8 @@ Object subclass: #Vector
 
         <section>
           <pre class="mediumer"><code data-trim data-noescape class="javascript">
+// smalltalk2js compiler. v0.0.-1.
 var fs = require('fs');
-
 var input = process.argv[2];
 var result = fs.readFileSync(input)
   .toString()
@@ -281,6 +291,9 @@ lensum x <span class="red">6.30</span> ops/sec
 					<h1 style="font-family: Monaco, monospace;"><span style=" font-size: 0.8em;">invokedynamic</span></h1>
 				</section>
 
+        <section data-background="images/invokedynamic.png" data-background-size="contain">
+        </section>
+
 				<section>
           <div style="max-width: 50%; margin-left: auto; margin-right: auto;">
   					<p style="text-align:justify;">&laquo;A <code>CallSite</code> is a holder for a variable <code>MethodHandle</code>, which is called its <em>target</em>. An <code>invokedynamic</code> instruction linked to a <code>CallSite</code> delegates all calls to the site's current target. A <code>CallSite</code> may be associated with several <code>invokedynamic</code> instructions, or it may be "free floating", associated with none. In any case, it may be invoked through an associated method handle called its <em>dynamic invoker</em>.</p>
@@ -373,6 +386,7 @@ new SendSite(1, '+')
 </code></pre>
         </section>
 
+<!--
         <section>
           <pre class="bigger2"><code data-trim data-noescape class="javascript">
 function SendSite(id, message) {
@@ -383,13 +397,14 @@ function SendSite(id, message) {
       2 : (message.split(':').length - 1);
 }</code></pre>
         </section>
+-->
 
         <section>
           <pre class="bigger15"><code data-trim data-noescape class="javascript">
 SendSite.prototype.bootstrap = function () {
   var args = _.range(this.argc)
       .map(function (n) { return 'a' + n });
-  this.link(CompileHandler({
+  this.link(<span class="udr">CompileHandler</span>({
     args: ['self'].concat(args),
     op: 'self["' + this.message + '"]' +
         '(' + args.join(', ') + ')'
@@ -445,7 +460,7 @@ function Handler(self,a0,a1) {
 
         <section>
           <pre class="bigger2"><code data-trim data-noescape class="javascript">
-CallSite.prototype = {
+SendSite.prototype = {
   <b>link</b>: function (handler) {
     handler.site = this;
     global[this.name] = handler;
